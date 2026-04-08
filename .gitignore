@@ -1,15 +1,55 @@
-*.iml
-.gradle
-/local.properties
-/.idea
-/build
-/captures
-.externalNativeBuild
-.cxx
-*.apk
-*.aab
+# Flutter/Dart
 .dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
 .packages
 .pub-cache/
 .pub/
 build/
+
+# Android
+android/local.properties
+android/key.properties
+android/app/src/main/res/values/google-services.json
+*.iml
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# iOS/macOS
+ios/.generated/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Pods/
+ios/Runner.xcworkspace/xcuserdata/
+ios/Runner/GeneratedPluginRegistrant.h
+ios/Runner/GeneratedPluginRegistrant.m
+ios/.pbpkg/
+.DS_Store
+*.mode1v3
+*.mode2v3
+*.apple_arch
+*.apple_keys
+DerivedData/
+build/
+**/ios/Flutter/ephemeral/
+**/ios/Pods/
+**/ios/.symlinks/
+
+# Web
+build/web/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*~
+.project
+.settings/
+.classpath
+
+# Sensitive files
+.env*

@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -58,6 +59,57 @@ class _ApplicationFormScreenState
   File? _aadharBack;
 
   bool _agreedToDeclaration = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen to text changes to update the submit button state dynamically
+    _fullNameCtrl.addListener(_updateFormState);
+    _fatherNameCtrl.addListener(_updateFormState);
+    _mobileCtrl.addListener(_updateFormState);
+    _emailCtrl.addListener(_updateFormState);
+    _dobCtrl.addListener(_updateFormState);
+    _currAddressCtrl.addListener(_updateFormState);
+    _permAddressCtrl.addListener(_updateFormState);
+    _eduCtrl.addListener(_updateFormState);
+    _occCtrl.addListener(_updateFormState);
+  }
+
+  void _updateFormState() {
+    setState(() {}); // Rebuilds the UI so the button can check if it should enable
+  }
+
+  bool get _isFormReady {
+    // 1. Check Text Fields & Regex
+    if (_fullNameCtrl.text.trim().isEmpty) return false;
+    if (_fatherNameCtrl.text.trim().isEmpty) return false;
+    if (!RegExp(r'^[6-9]\d{9}$').hasMatch(_mobileCtrl.text.trim())) return false; // Mobile
+    if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(_emailCtrl.text.trim())) return false; // Email
+    if (_dobCtrl.text.trim().isEmpty) return false;
+    if (_currAddressCtrl.text.trim().isEmpty) return false;
+    if (_permAddressCtrl.text.trim().isEmpty) return false;
+    if (_eduCtrl.text.trim().isEmpty) return false;
+    if (_occCtrl.text.trim().isEmpty) return false;
+
+    // 2. Check Dropdowns & Region Logic
+    if (_selectedGender == null) return false;
+    if (_selectedBloodGroup == null) return false;
+    if (_isFromRaipur && _selectedRegion == null) return false;
+
+    // 3. Check Proposer
+    if (_selectedProposer == null) return false;
+
+    // 4. Check Uploaded Files
+    if (_applicantPhoto == null) return false;
+    if (_applicantSignature == null) return false;
+    if (_aadharFront == null) return false;
+    if (_aadharBack == null) return false;
+
+    // 5. Check Rules Declaration
+    if (!_agreedToDeclaration) return false;
+
+    return true; // If it survives all checks, the form is ready!
+  }
 
   @override
   void dispose() {
@@ -288,7 +340,7 @@ class _ApplicationFormScreenState
                 Text('Blood Group *', style: AppTextStyles.labelBold),
                 SizedBox(height: 6.h),
                 DropdownButtonFormField<String>(
-                  value: _selectedBloodGroup,
+                  initialValue: _selectedBloodGroup,
                   decoration: const InputDecoration(),
                   items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bg) {
                     return DropdownMenuItem(value: bg, child: Text(bg));
@@ -307,8 +359,17 @@ class _ApplicationFormScreenState
                   label: 'Mobile Number *',
                   controller: _mobileCtrl,
                   keyboardType: TextInputType.phone,
-                  validator: (v) =>
-                  v!.length != 10 ? 'Enter valid 10 digit number' : null,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Required';
+                    if (!RegExp(r'^[6-9]\d{9}$').hasMatch(v)) {
+                      return 'Enter a valid 10-digit Indian number';
+                    }
+                    return null;
+                  },
                 ),
                 SizedBox(height: 16.h),
 
@@ -316,8 +377,14 @@ class _ApplicationFormScreenState
                   label: 'Email Address *',
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
-                  validator: (v) =>
-                  v!.isEmpty || !v.contains('@') ? 'Enter valid email' : null,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Required';
+                    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                    if (!emailRegex.hasMatch(v)) {
+                      return 'Enter a valid email address';
+                    }
+                    return null;
+                  },
                 ),
                 SizedBox(height: 16.h),
 
@@ -553,7 +620,7 @@ class _ApplicationFormScreenState
                 CustomButton(
                   text: 'Submit Application',
                   isLoading: isLoading,
-                  onPressed: _submitForm,
+                  onPressed: _isFormReady ? _submitForm : null,
                 ),
 
                 Center(

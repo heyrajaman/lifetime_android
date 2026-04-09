@@ -10,6 +10,7 @@ import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/custom_snack_bar.dart';
 import '../../../../core/widgets/empty_error_widget.dart';
+import '../../../../core/widgets/loading_overlay.dart';
 import '../viewmodels/edit_application_viewmodel.dart';
 import '../viewmodels/admin_dashboard_viewmodel.dart';
 
@@ -147,7 +148,7 @@ class _EditApplicationFormState extends ConsumerState<_EditApplicationForm> {
       'fatherOrHusbandName': _fatherNameCtrl.text.trim(),
       'gender': _selectedGender,
       'dateOfBirth': _dobCtrl.text.trim(),
-      'marriageDate': _marriageDateCtrl.text.trim(),
+      'marriageDate': _marriageDateCtrl.text.trim().isEmpty ? null : _marriageDateCtrl.text.trim(),
       'bloodGroup': _selectedBloodGroup,
       'education': _educationCtrl.text.trim(),
       'occupation': _occupationCtrl.text.trim(),
@@ -155,7 +156,7 @@ class _EditApplicationFormState extends ConsumerState<_EditApplicationForm> {
       'email': _emailCtrl.text.trim(),
       'currentAddress': _currentAddressCtrl.text.trim(),
       'permanentAddress': _permanentAddressCtrl.text.trim(),
-      'officeAddress': _officeAddressCtrl.text.trim(),
+      'officeAddress': _officeAddressCtrl.text.trim().isEmpty ? null : _officeAddressCtrl.text.trim(),
       'isFromRaipur': _isFromRaipur,
       'region': _isFromRaipur ? _regionCtrl.text.trim() : null,
     };
@@ -301,208 +302,211 @@ class _EditApplicationFormState extends ConsumerState<_EditApplicationForm> {
     final canEditForm = currentStatus == 'PENDING_ADMIN_REVIEW' || currentStatus == 'PAYMENT_COMPLETED';
     final isLocked = !canEditForm;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(24.w),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Status Header
-          Container(
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: AppColors.kPrimaryLight,
-              borderRadius: BorderRadius.circular(8.r),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, color: AppColors.kPrimaryColor),
-                SizedBox(width: 8.w),
-                Expanded(
-                  child: Text(
-                    'Status: $currentStatus',
-                    style: AppTextStyles.labelBold.copyWith(color: AppColors.kPrimaryHover),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Show warning at the top if locked
-          if (isLocked) ...[
-            SizedBox(height: 16.h),
+    return LoadingOverlay(
+      isLoading: isProcessing,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(24.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Status Header
             Container(
               padding: EdgeInsets.all(16.w),
-              decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8.r)),
-              child: Text(
-                '🔒 Form is currently locked to prevent accidental changes. You can only edit details during the initial Admin Review or after the applicant completes their fee payment.',
-                style: AppTextStyles.bodyMedium.copyWith(color: Colors.orange),
+              decoration: BoxDecoration(
+                color: AppColors.kPrimaryLight,
+                borderRadius: BorderRadius.circular(8.r),
               ),
-            ),
-          ],
-          SizedBox(height: 24.h),
-
-          // --- AbsorbPointer makes the entire form Read-Only if locked ---
-          AbsorbPointer(
-            absorbing: isLocked,
-            child: Opacity(
-              opacity: isLocked ? 0.7 : 1.0, // Dims the form slightly when locked
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              child: Row(
                 children: [
-                  // --- Personal Details ---
-                  Text('Personal Details', style: AppTextStyles.h2Bold.copyWith(color: AppColors.kPrimaryColor)),
-                  SizedBox(height: 16.h),
-                  CustomTextField(label: 'Full Name', controller: _nameCtrl),
-                  SizedBox(height: 16.h),
-                  CustomTextField(label: 'Father/Husband Name', controller: _fatherNameCtrl),
-                  SizedBox(height: 16.h),
-
-                  // Gender & Blood Group
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          decoration: const InputDecoration(labelText: 'Gender'),
-                          initialValue: _selectedGender,
-                          items: const [
-                            DropdownMenuItem(value: 'MALE', child: Text('Male')),
-                            DropdownMenuItem(value: 'FEMALE', child: Text('Female')),
-                            DropdownMenuItem(value: 'OTHER', child: Text('Other')),
-                          ],
-                          onChanged: (val) => setState(() => _selectedGender = val),
-                        ),
-                      ),
-                      SizedBox(width: 16.w),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          decoration: const InputDecoration(labelText: 'Blood Group'),
-                          initialValue: _selectedBloodGroup,
-                          items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
-                              .map((bg) => DropdownMenuItem(value: bg, child: Text(bg)))
-                              .toList(),
-                          onChanged: (val) => setState(() => _selectedBloodGroup = val),
-                        ),
-                      ),
-                    ],
+                  const Icon(Icons.info_outline, color: AppColors.kPrimaryColor),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: Text(
+                      'Status: $currentStatus',
+                      style: AppTextStyles.labelBold.copyWith(color: AppColors.kPrimaryHover),
+                    ),
                   ),
-                  SizedBox(height: 16.h),
-
-                  // Dates
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => _selectDate(context, _dobCtrl),
-                          child: IgnorePointer(
-                            child: CustomTextField(
-                              label: 'Date of Birth',
-                              controller: _dobCtrl,
-                              suffixIcon: const Icon(Icons.calendar_today_outlined),
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 16.w),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => _selectDate(context, _marriageDateCtrl),
-                          child: IgnorePointer(
-                            child: CustomTextField(
-                              label: 'Marriage Date',
-                              controller: _marriageDateCtrl,
-                              suffixIcon: const Icon(Icons.calendar_today_outlined),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 24.h),
-
-                  // --- Contact Details ---
-                  Text('Contact Details', style: AppTextStyles.h2Bold.copyWith(color: AppColors.kPrimaryColor)),
-                  SizedBox(height: 16.h),
-                  CustomTextField(label: 'Mobile Number', controller: _mobileCtrl, keyboardType: TextInputType.phone),
-                  SizedBox(height: 16.h),
-                  CustomTextField(label: 'Email', controller: _emailCtrl, keyboardType: TextInputType.emailAddress),
-                  SizedBox(height: 16.h),
-                  CustomTextField(label: 'Current Address', controller: _currentAddressCtrl, maxLines: 2),
-                  SizedBox(height: 16.h),
-                  CustomTextField(label: 'Permanent Address', controller: _permanentAddressCtrl, maxLines: 2),
-                  SizedBox(height: 16.h),
-
-                  // Raipur Region Toggle
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('Is applicant from Raipur?', style: AppTextStyles.labelBold),
-                    activeThumbColor: AppColors.kPrimaryColor,
-                    value: _isFromRaipur,
-                    onChanged: (val) {
-                      setState(() {
-                        _isFromRaipur = val;
-                        if (!val) _regionCtrl.clear();
-                      });
-                    },
-                  ),
-                  if (_isFromRaipur) ...[
-                    SizedBox(height: 8.h),
-                    CustomTextField(label: 'Region', controller: _regionCtrl),
-                  ],
-                  SizedBox(height: 24.h),
-
-                  // --- Professional Details ---
-                  Text('Professional Details', style: AppTextStyles.h2Bold.copyWith(color: AppColors.kPrimaryColor)),
-                  SizedBox(height: 16.h),
-                  CustomTextField(label: 'Education', controller: _educationCtrl),
-                  SizedBox(height: 16.h),
-                  CustomTextField(label: 'Occupation', controller: _occupationCtrl),
-                  SizedBox(height: 16.h),
-                  CustomTextField(label: 'Office Address', controller: _officeAddressCtrl, maxLines: 2),
                 ],
               ),
             ),
-          ),
 
-          SizedBox(height: 32.h),
+            // Show warning at the top if locked
+            if (isLocked) ...[
+              SizedBox(height: 16.h),
+              Container(
+                padding: EdgeInsets.all(16.w),
+                decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8.r)),
+                child: Text(
+                  '🔒 Form is currently locked to prevent accidental changes. You can only edit details during the initial Admin Review or after the applicant completes their fee payment.',
+                  style: AppTextStyles.bodyMedium.copyWith(color: Colors.orange),
+                ),
+              ),
+            ],
+            SizedBox(height: 24.h),
 
-          // Hide Save button if locked
-          if (canEditForm) ...[
-            CustomButton(
-              text: 'Save Changes',
-              isLoading: isProcessing,
-              onPressed: _handleSave,
+            // --- AbsorbPointer makes the entire form Read-Only if locked ---
+            AbsorbPointer(
+              absorbing: isLocked,
+              child: Opacity(
+                opacity: isLocked ? 0.7 : 1.0, // Dims the form slightly when locked
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // --- Personal Details ---
+                    Text('Personal Details', style: AppTextStyles.h2Bold.copyWith(color: AppColors.kPrimaryColor)),
+                    SizedBox(height: 16.h),
+                    CustomTextField(label: 'Full Name', controller: _nameCtrl),
+                    SizedBox(height: 16.h),
+                    CustomTextField(label: 'Father/Husband Name', controller: _fatherNameCtrl),
+                    SizedBox(height: 16.h),
+
+                    // Gender & Blood Group
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            decoration: const InputDecoration(labelText: 'Gender'),
+                            initialValue: _selectedGender,
+                            items: const [
+                              DropdownMenuItem(value: 'MALE', child: Text('Male')),
+                              DropdownMenuItem(value: 'FEMALE', child: Text('Female')),
+                              DropdownMenuItem(value: 'OTHER', child: Text('Other')),
+                            ],
+                            onChanged: (val) => setState(() => _selectedGender = val),
+                          ),
+                        ),
+                        SizedBox(width: 16.w),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            decoration: const InputDecoration(labelText: 'Blood Group'),
+                            initialValue: _selectedBloodGroup,
+                            items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+                                .map((bg) => DropdownMenuItem(value: bg, child: Text(bg)))
+                                .toList(),
+                            onChanged: (val) => setState(() => _selectedBloodGroup = val),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16.h),
+
+                    // Dates
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _selectDate(context, _dobCtrl),
+                            child: IgnorePointer(
+                              child: CustomTextField(
+                                label: 'Date of Birth',
+                                controller: _dobCtrl,
+                                suffixIcon: const Icon(Icons.calendar_today_outlined),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 16.w),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _selectDate(context, _marriageDateCtrl),
+                            child: IgnorePointer(
+                              child: CustomTextField(
+                                label: 'Marriage Date',
+                                controller: _marriageDateCtrl,
+                                suffixIcon: const Icon(Icons.calendar_today_outlined),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 24.h),
+
+                    // --- Contact Details ---
+                    Text('Contact Details', style: AppTextStyles.h2Bold.copyWith(color: AppColors.kPrimaryColor)),
+                    SizedBox(height: 16.h),
+                    CustomTextField(label: 'Mobile Number', controller: _mobileCtrl, keyboardType: TextInputType.phone),
+                    SizedBox(height: 16.h),
+                    CustomTextField(label: 'Email', controller: _emailCtrl, keyboardType: TextInputType.emailAddress),
+                    SizedBox(height: 16.h),
+                    CustomTextField(label: 'Current Address', controller: _currentAddressCtrl, maxLines: 2),
+                    SizedBox(height: 16.h),
+                    CustomTextField(label: 'Permanent Address', controller: _permanentAddressCtrl, maxLines: 2),
+                    SizedBox(height: 16.h),
+
+                    // Raipur Region Toggle
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Is applicant from Raipur?', style: AppTextStyles.labelBold),
+                      activeThumbColor: AppColors.kPrimaryColor,
+                      value: _isFromRaipur,
+                      onChanged: (val) {
+                        setState(() {
+                          _isFromRaipur = val;
+                          if (!val) _regionCtrl.clear();
+                        });
+                      },
+                    ),
+                    if (_isFromRaipur) ...[
+                      SizedBox(height: 8.h),
+                      CustomTextField(label: 'Region', controller: _regionCtrl),
+                    ],
+                    SizedBox(height: 24.h),
+
+                    // --- Professional Details ---
+                    Text('Professional Details', style: AppTextStyles.h2Bold.copyWith(color: AppColors.kPrimaryColor)),
+                    SizedBox(height: 16.h),
+                    CustomTextField(label: 'Education', controller: _educationCtrl),
+                    SizedBox(height: 16.h),
+                    CustomTextField(label: 'Occupation', controller: _occupationCtrl),
+                    SizedBox(height: 16.h),
+                    CustomTextField(label: 'Office Address', controller: _officeAddressCtrl, maxLines: 2),
+                  ],
+                ),
+              ),
             ),
+
+            SizedBox(height: 32.h),
+
+            // Hide Save button if locked
+            if (canEditForm) ...[
+              CustomButton(
+                text: 'Save Changes',
+                isLoading: isProcessing,
+                onPressed: _handleSave,
+              ),
+              SizedBox(height: 32.h),
+              const Divider(),
+              SizedBox(height: 24.h),
+            ],
+
+            // --- Uploaded Documents Viewer (Always Visible) ---
+            Text('Uploaded Documents', style: AppTextStyles.h2Bold.copyWith(color: AppColors.kPrimaryColor)),
+            SizedBox(height: 16.h),
+            SizedBox(
+              height: 140.h,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _buildDocumentCard('Applicant Photo', _getFileUrl('PHOTO') ?? _getFileUrl('APPLICANT_PHOTO')),
+                  _buildDocumentCard('Signature', _getFileUrl('SIGNATURE')),
+                  _buildDocumentCard('Aadhar Front', _getFileUrl('AADHAR_FRONT')),
+                  _buildDocumentCard('Aadhar Back', _getFileUrl('AADHAR_BACK')),
+                ],
+              ),
+            ),
+
+            // Admin Actions (Always visible so we can show contextual status boxes)
             SizedBox(height: 32.h),
             const Divider(),
-            SizedBox(height: 24.h),
+            SizedBox(height: 16.h),
+            Text('Admin Actions', style: AppTextStyles.h2Bold),
+            SizedBox(height: 8.h),
+            _buildSmartAdminActions(currentStatus, isProcessing),
+
+            SizedBox(height: 40.h),
           ],
-
-          // --- Uploaded Documents Viewer (Always Visible) ---
-          Text('Uploaded Documents', style: AppTextStyles.h2Bold.copyWith(color: AppColors.kPrimaryColor)),
-          SizedBox(height: 16.h),
-          SizedBox(
-            height: 140.h,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                _buildDocumentCard('Applicant Photo', _getFileUrl('PHOTO') ?? _getFileUrl('APPLICANT_PHOTO')),
-                _buildDocumentCard('Signature', _getFileUrl('SIGNATURE')),
-                _buildDocumentCard('Aadhar Front', _getFileUrl('AADHAR_FRONT')),
-                _buildDocumentCard('Aadhar Back', _getFileUrl('AADHAR_BACK')),
-              ],
-            ),
-          ),
-
-          // Admin Actions (Always visible so we can show contextual status boxes)
-          SizedBox(height: 32.h),
-          const Divider(),
-          SizedBox(height: 16.h),
-          Text('Admin Actions', style: AppTextStyles.h2Bold),
-          SizedBox(height: 8.h),
-          _buildSmartAdminActions(currentStatus, isProcessing),
-
-          SizedBox(height: 40.h),
-        ],
+        ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -88,9 +89,16 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
                     prefixIcon: const Icon(Icons.phone_outlined, color: AppColors.kTextHint),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Phone number is required';
+                      }
+                      if (!RegExp(r'^[6-9]\d{9}$').hasMatch(value)) {
+                        return 'Enter a valid 10-digit phone number';
                       }
                       return null;
                     },

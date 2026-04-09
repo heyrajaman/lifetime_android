@@ -30,6 +30,14 @@ class AdminDashboardRepository {
     }
   }
 
+  Future<void> toggleMemberStatus(String id) async {
+    try {
+      await _apiClient.dio.patch(ApiEndpoints.toggleMemberStatus(id));
+    } catch (e) {
+      throw Exception('Failed to toggle member status.');
+    }
+  }
+
   Future<void> updateFee(double newAmount) async {
     try {
       await _apiClient.dio.patch(

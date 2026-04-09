@@ -555,6 +555,17 @@ class _ApplicationFormScreenState
                   isLoading: isLoading,
                   onPressed: _submitForm,
                 ),
+
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () => context.push('/admin/login'),
+                    icon: const Icon(Icons.admin_panel_settings, color: Colors.grey),
+                    label: const Text(
+                      'Admin Login',
+                      style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
                 SizedBox(height: 48.h),
               ],
             ),

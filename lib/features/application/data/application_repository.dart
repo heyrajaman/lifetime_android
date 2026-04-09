@@ -27,6 +27,9 @@ class ApplicationRepository {
 
       return response.data;
     } catch (e) {
+      if (e is DioException) {
+        print('🔴 EXACT URL FAILED: ${e.requestOptions.uri}');
+      }
       print('🔴 REGION FETCH ERROR: $e');
       return []; // Return empty if fails, handled gracefully in UI
     }

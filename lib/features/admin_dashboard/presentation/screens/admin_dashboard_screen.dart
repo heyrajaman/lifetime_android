@@ -70,6 +70,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 class _ApplicantsTab extends ConsumerWidget {
   const _ApplicantsTab();
 
+  String _formatStatus(String? status) {
+    if (status == null) return 'Pending';
+    return status.replaceAll('_', ' ').split(' ').map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final applicantsState = ref.watch(applicantsListProvider);
@@ -89,34 +97,46 @@ class _ApplicantsTab extends ConsumerWidget {
             icon: Icons.inbox,
           );
         }
-        return ListView.separated(
-          padding: EdgeInsets.all(16.w),
-          itemCount: applicants.length,
-          separatorBuilder: (context, index) =>
-              SizedBox(height: 12.h), // ✅ fixed
-          itemBuilder: (context, index) {
-            final Map<String, dynamic> applicant = applicants[index]; // ✅ safer typing
-            return ListTile(
-              tileColor: AppColors.kSurfaceColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              title: Text(
-                applicant['fullName'] ?? 'Unknown',
-                style: AppTextStyles.labelBold,
-              ),
-              subtitle: Text(
-                applicant['status'] ?? 'Pending',
-                style: AppTextStyles.bodyMedium,
-              ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: AppColors.kPrimaryColor,
-              ),
-              onTap: () =>
-                  context.push('/edit-application/${applicant['id']}'),
-            );
+        return RefreshIndicator(
+          color: AppColors.kPrimaryColor,
+          onRefresh: () async {
+            // This forces Riverpod to fetch fresh data from the Node.js backend
+            ref.invalidate(applicantsListProvider);
+            // Optional delay to ensure the UI shows the spinner briefly
+            await Future.delayed(const Duration(milliseconds: 500));
           },
+          child: ListView.separated(
+            // AlwaysScrollable ensures Pull-to-Refresh works even if there's only 1 item
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.all(16.w),
+            itemCount: applicants.length,
+            separatorBuilder: (context, index) => SizedBox(height: 12.h),
+            itemBuilder: (context, index) {
+              final Map<String, dynamic> applicant = applicants[index];
+              return ListTile(
+                tileColor: AppColors.kSurfaceColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                title: Text(
+                  applicant['fullName'] ?? 'Unknown',
+                  style: AppTextStyles.labelBold,
+                ),
+                subtitle: Text(
+                  _formatStatus(applicant['status']), // Using our new beautiful formatter
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.kPrimaryColor, // Adding a little color to the status
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                trailing: const Icon(
+                  Icons.chevron_right,
+                  color: AppColors.kPrimaryColor,
+                ),
+                onTap: () => context.push('/edit-application/${applicant['id']}'),
+              );
+            },
+          ),
         );
       },
     );
@@ -125,6 +145,72 @@ class _ApplicantsTab extends ConsumerWidget {
 
 class _MembersTab extends ConsumerWidget {
   const _MembersTab();
+
+  void _showMemberDetails(BuildContext context, Map<String, dynamic> member) {
+    final name = member['name'] ?? member['fullName'] ?? 'Unknown';
+    final email = member['email'] ?? 'N/A';
+    final mobile = member['mobileNumber'] ?? 'N/A';
+
+    String dob = member['dateOfBirth'] ?? 'N/A';
+    if (dob.length >= 10) dob = dob.substring(0, 10);
+
+    final bloodGroup = member['bloodGroup'] ?? 'N/A';
+    final role = member['role'] ?? 'MEMBER';
+    final currentAddress = member['currentAddress'] ?? 'N/A';
+    final permanentAddress = member['permanentAddress'] ?? 'N/A';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+          title: Row(
+            children: [
+              const Icon(Icons.person, color: AppColors.kPrimaryColor),
+              SizedBox(width: 8.w),
+              Expanded(child: Text(name, style: AppTextStyles.h2Bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDetailRow('Role', role),
+                _buildDetailRow('Mobile Number', mobile),
+                _buildDetailRow('Email Address', email),
+                _buildDetailRow('Date of Birth', dob),
+                _buildDetailRow('Blood Group', bloodGroup),
+                const Divider(height: 24),
+                _buildDetailRow('Current Address', currentAddress),
+                _buildDetailRow('Permanent Address', permanentAddress),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close', style: TextStyle(color: AppColors.kPrimaryColor, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppTextStyles.bodyMedium.copyWith(color: Colors.grey)),
+          SizedBox(height: 4.h),
+          Text(value, style: AppTextStyles.bodyMedium),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -145,32 +231,51 @@ class _MembersTab extends ConsumerWidget {
             icon: Icons.group_off,
           );
         }
-        return ListView.separated(
-          padding: EdgeInsets.all(16.w),
-          itemCount: members.length,
-          separatorBuilder: (context, index) =>
-              SizedBox(height: 12.h), // ✅ fixed
-          itemBuilder: (context, index) {
-            final Map<String, dynamic> member = members[index]; // ✅ safer typing
-            return ListTile(
-              tileColor: AppColors.kSurfaceColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              title: Text(
-                member['fullName'] ?? 'Unknown',
-                style: AppTextStyles.labelBold,
-              ),
-              subtitle: Text(
-                member['registrationNumber'] ?? 'No Reg No.',
-                style: AppTextStyles.bodyMedium,
-              ),
-              leading: const CircleAvatar(
-                backgroundColor: AppColors.kPrimaryLight,
-                child: Icon(Icons.person, color: AppColors.kPrimaryColor),
-              ),
-            );
+        return RefreshIndicator(
+          color: AppColors.kPrimaryColor,
+          onRefresh: () async {
+            ref.invalidate(membersListProvider);
+            await Future.delayed(const Duration(milliseconds: 500));
           },
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.all(16.w),
+            itemCount: members.length,
+            separatorBuilder: (context, index) => SizedBox(height: 12.h),
+            itemBuilder: (context, index) {
+              final Map<String, dynamic> member = members[index];
+
+              final name = member['fullName'] ?? member['name'] ?? 'Unknown Member';
+              final mobile = member['mobileNumber'] ?? 'No Number';
+              final role = member['role'] ?? 'MEMBER';
+              final isActive = member['isActive'] == true || member['status'] == 'ACTIVE';
+
+              return Card(
+                margin: EdgeInsets.only(bottom: 0), // Removed margin since we use separated list
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                child: ListTile(
+                  title: Text(name, style: AppTextStyles.labelBold),
+                  subtitle: Text('$mobile  •  Role: $role', style: AppTextStyles.bodyMedium),
+                  trailing: Switch(
+                    value: isActive,
+                    activeThumbColor: AppColors.kPrimaryColor,
+                    onChanged: (bool newValue) async {
+                      final success = await ref.read(memberActionProvider.notifier).toggleStatus(member['id']);
+                      if (success && context.mounted) {
+                        CustomSnackBar.showSuccess(context, 'Member status updated!');
+                        ref.invalidate(membersListProvider);
+                      } else if (context.mounted) {
+                        CustomSnackBar.showError(context, 'Failed to update member status.');
+                      }
+                    },
+                  ),
+                  onTap: () {
+                    _showMemberDetails(context, member);
+                  },
+                ),
+              );
+            },
+          ),
         );
       },
     );

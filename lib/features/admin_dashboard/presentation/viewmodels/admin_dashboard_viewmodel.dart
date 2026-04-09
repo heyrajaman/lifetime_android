@@ -37,3 +37,30 @@ class FeeUpdateViewModel extends StateNotifier<AsyncValue<void>> {
     }
   }
 }
+
+final memberActionProvider = StateNotifierProvider<MemberActionViewModel, AsyncValue<void>>((ref) {
+  return MemberActionViewModel(ref.read(adminDashboardRepositoryProvider));
+});
+
+class MemberActionViewModel extends StateNotifier<AsyncValue<void>> {
+  final AdminDashboardRepository _repository;
+
+  MemberActionViewModel(this._repository) : super(const AsyncData(null));
+
+  Future<bool> toggleStatus(String id) async {
+    if (!mounted) return false;
+
+    state = const AsyncLoading();
+    try {
+      await _repository.toggleMemberStatus(id);
+      if (!mounted) return true;
+
+      state = const AsyncData(null);
+      return true;
+    } catch (e, stack) {
+      if (!mounted) return false;
+      state = AsyncError(e, stack);
+      return false;
+    }
+  }
+}

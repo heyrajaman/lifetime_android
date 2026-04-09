@@ -1,7 +1,7 @@
 class ApiEndpoints {
   // IMPORTANT: For Android emulator connecting to local backend, use 10.0.2.2.
   // For iOS simulator, use 127.0.0.1. For production, replace with your live URL.
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  static const String baseUrl = 'http://10.0.2.2:3000/api/v1';
 
   // --- Public / Applicant Endpoints ---
   static const String submitApplication = '/applicants';

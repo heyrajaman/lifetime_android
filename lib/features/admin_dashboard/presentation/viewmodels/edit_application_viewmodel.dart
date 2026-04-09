@@ -37,4 +37,18 @@ class EditAppViewModel extends StateNotifier<AsyncValue<void>> {
       return false;
     }
   }
+
+  Future<bool> promoteApplicant(String id, String registrationNumber) async {
+    if (registrationNumber.trim().isEmpty) return false;
+
+    state = const AsyncLoading();
+    try {
+      await _repository.promoteToMember(id, registrationNumber);
+      state = const AsyncData(null);
+      return true;
+    } catch (e) {
+      state = AsyncError(e, StackTrace.current);
+      return false;
+    }
+  }
 }

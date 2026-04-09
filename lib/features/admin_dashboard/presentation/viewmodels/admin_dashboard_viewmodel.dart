@@ -13,7 +13,7 @@ FutureProvider.autoDispose<List<dynamic>>((ref) async {
 });
 
 // ViewModel for updating the fee
-final feeUpdateViewModelProvider = StateNotifierProvider.autoDispose<
+final feeUpdateViewModelProvider = StateNotifierProvider<
     FeeUpdateViewModel, AsyncValue<void>>((ref) {
   return FeeUpdateViewModel(ref.read(adminDashboardRepositoryProvider));
 });
@@ -21,17 +21,20 @@ final feeUpdateViewModelProvider = StateNotifierProvider.autoDispose<
 class FeeUpdateViewModel extends StateNotifier<AsyncValue<void>> {
   final AdminDashboardRepository _repository;
 
-  FeeUpdateViewModel(this._repository)
-      : super(const AsyncData(null));
+  FeeUpdateViewModel(this._repository) : super(const AsyncData(null));
 
   Future<bool> updateFee(double newAmount) async {
-    state = const AsyncLoading();
+    if (!mounted) return false;
 
+    state = const AsyncLoading();
     try {
       await _repository.updateFee(newAmount);
+
+      if (!mounted) return true;
       state = const AsyncData(null);
       return true;
     } catch (e, stack) {
+      if (!mounted) return true;
       state = AsyncError(e, stack);
       return false;
     }

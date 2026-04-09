@@ -42,4 +42,18 @@ class EditApplicationRepository {
       throw Exception(e.response?.data['message'] ?? 'Failed to submit review.');
     }
   }
+
+  Future<void> promoteToMember(String applicantId, String registrationNumber) async {
+    try {
+      await _apiClient.dio.post(
+        ApiEndpoints.promoteApplicant,
+        data: {
+          'applicantId': applicantId,
+          'registrationNumber': registrationNumber,
+        },
+      );
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['message'] ?? 'Failed to promote applicant.');
+    }
+  }
 }

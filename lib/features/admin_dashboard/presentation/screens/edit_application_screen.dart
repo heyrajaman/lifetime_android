@@ -59,6 +59,7 @@ class _EditApplicationForm extends ConsumerStatefulWidget {
 
 class _EditApplicationFormState extends ConsumerState<_EditApplicationForm> {
   // All Controllers
+  final _regNumCtrl = TextEditingController();
   late TextEditingController _nameCtrl;
   late TextEditingController _fatherNameCtrl;
   late TextEditingController _dobCtrl;
@@ -187,6 +188,26 @@ class _EditApplicationFormState extends ConsumerState<_EditApplicationForm> {
       final error = ref.read(editAppViewModelProvider).error;
       CustomSnackBar.showError(
           context, error.toString().replaceAll('Exception: ', ''));
+    }
+  }
+
+  Future<void> _handlePromote() async {
+    final regNum = _regNumCtrl.text.trim();
+    if (regNum.isEmpty || regNum.length > 50) {
+      CustomSnackBar.showError(context, 'Please enter a valid Registration Number (Max 50 chars).');
+      return;
+    }
+
+    final success = await ref.read(editAppViewModelProvider.notifier)
+        .promoteApplicant(widget.initialData['id'], regNum);
+
+    if (success && mounted) {
+      CustomSnackBar.showSuccess(context, 'Applicant officially promoted to Member!');
+      ref.invalidate(applicantsListProvider);
+      ref.invalidate(membersListProvider);
+      context.pop();
+    } else if (mounted) {
+      CustomSnackBar.showError(context, 'Failed to promote applicant.');
     }
   }
 
@@ -546,7 +567,24 @@ class _EditApplicationFormState extends ConsumerState<_EditApplicationForm> {
     }
 
     if (status == 'PAYMENT_COMPLETED') {
-      return _buildStatusBox(Colors.green, '✅ Payment Completed! You can make any final edits above and save them. This applicant is ready to be promoted from the Dashboard.');
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildStatusBox(Colors.green, '✅ Payment Completed! This applicant is ready to become an official member.'),
+          SizedBox(height: 16.h),
+          CustomTextField(
+            label: 'Assign Registration Number',
+            controller: _regNumCtrl,
+            hintText: 'e.g. MM-2026-001',
+          ),
+          SizedBox(height: 16.h),
+          CustomButton(
+            text: 'Promote to Member',
+            isLoading: isProcessing,
+            onPressed: _handlePromote,
+          ),
+        ],
+      );
     }
 
     // Default fallback for any weird states (like REJECTED)

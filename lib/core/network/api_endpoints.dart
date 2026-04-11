@@ -43,6 +43,11 @@ class ApiEndpoints {
   static const String getDashboardStats = '/admins/dashboard-stats';
   static const String exportDashboardReport = '/admins/dashboard-stats/export';
 
+  // Admin Region Management
+  static const String getRegionsAdmin = '/regions/admin';
+  static const String addRegionAdmin = '/regions/admin';
+  static String toggleRegionAdmin(String id) => '/regions/admin/$id/toggle';
+
   static const String updateFee = '/admins/settings/update-fee';
   static String adminEditApplicant(String id) => '/admins/applicants/$id/edit';
 }

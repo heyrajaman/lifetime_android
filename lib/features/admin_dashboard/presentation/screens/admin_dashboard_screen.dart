@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'admin_analytics_screen.dart';
+import 'admin_regions_screen.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -544,6 +545,20 @@ class _SettingsTab extends ConsumerWidget {
             subtitle: 'Change the lifetime registration cost',
             icon: Icons.currency_rupee,
             onTap: () => _showUpdateFeeDialog(context, ref),
+          ),
+          SizedBox(height: 16.h),
+
+          _buildSettingTile(
+            context,
+            title: 'Manage Regions',
+            subtitle: 'Add or toggle regions for the applicant form',
+            icon: Icons.map_outlined,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AdminRegionsScreen()),
+              );
+            },
           ),
           SizedBox(height: 16.h),
 

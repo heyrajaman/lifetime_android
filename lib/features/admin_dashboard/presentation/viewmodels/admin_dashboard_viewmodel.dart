@@ -107,3 +107,41 @@ class ExportReportViewModel extends StateNotifier<AsyncValue<void>> {
     }
   }
 }
+
+final regionsListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  return ref.read(adminDashboardRepositoryProvider).getRegionsAdmin();
+});
+
+final regionActionProvider = StateNotifierProvider<RegionActionViewModel, AsyncValue<void>>((ref) {
+  return RegionActionViewModel(ref.read(adminDashboardRepositoryProvider));
+});
+
+class RegionActionViewModel extends StateNotifier<AsyncValue<void>> {
+  final AdminDashboardRepository _repository;
+
+  RegionActionViewModel(this._repository) : super(const AsyncData(null));
+
+  Future<bool> addRegion(String name) async {
+    state = const AsyncLoading();
+    try {
+      await _repository.addRegionAdmin(name);
+      state = const AsyncData(null);
+      return true;
+    } catch (e, stack) {
+      state = AsyncError(e, stack);
+      return false;
+    }
+  }
+
+  Future<bool> toggleRegion(String id) async {
+    state = const AsyncLoading();
+    try {
+      await _repository.toggleRegionAdmin(id);
+      state = const AsyncData(null);
+      return true;
+    } catch (e, stack) {
+      state = AsyncError(e, stack);
+      return false;
+    }
+  }
+}

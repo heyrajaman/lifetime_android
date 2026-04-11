@@ -86,4 +86,32 @@ class AdminDashboardRepository {
       throw Exception('Failed to download report.');
     }
   }
+
+  Future<List<dynamic>> getRegionsAdmin() async {
+    try {
+      final response = await _apiClient.dio.get(ApiEndpoints.getRegionsAdmin);
+      return response.data['data'] ?? response.data;
+    } catch (e) {
+      throw Exception('Failed to load regions.');
+    }
+  }
+
+  Future<void> addRegionAdmin(String name) async {
+    try {
+      await _apiClient.dio.post(
+        ApiEndpoints.addRegionAdmin,
+        data: {'name': name},
+      );
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['message'] ?? 'Failed to add region.');
+    }
+  }
+
+  Future<void> toggleRegionAdmin(String id) async {
+    try {
+      await _apiClient.dio.patch(ApiEndpoints.toggleRegionAdmin(id));
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['message'] ?? 'Failed to toggle region.');
+    }
+  }
 }

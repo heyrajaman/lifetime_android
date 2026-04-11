@@ -77,7 +77,7 @@ class _ApplicantsTab extends ConsumerWidget {
     if (status == null) return 'Pending';
     return status.replaceAll('_', ' ').split(' ').map((word) {
       if (word.isEmpty) return '';
-      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+      return word.toUpperCase() + word.substring(1).toLowerCase();
     }).join(' ');
   }
 
@@ -87,7 +87,7 @@ class _ApplicantsTab extends ConsumerWidget {
 
     return Column(
       children: [
-        // --- NEW: Analytics Button Header ---
+        // --- EXISTING: Analytics Button Header ---
         Container(
           width: double.infinity,
           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
@@ -97,15 +97,32 @@ class _ApplicantsTab extends ConsumerWidget {
           ),
           child: CustomButton(
             text: 'View Analytics & Reports',
-            variant: ButtonVariant.outlined, // Makes it look clean and secondary
+            variant: ButtonVariant.outlined,
             onPressed: () {
-              // Navigate to the new Analytics Screen
-              // You can use standard Navigation or GoRouter depending on your setup
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const AdminAnalyticsScreen()),
               );
             },
+          ),
+        ),
+
+        // --- NEW: Search Bar ---
+        Container(
+          margin: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
+          decoration: BoxDecoration(
+            color: AppColors.kSurfaceColor,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: TextField(
+            onChanged: (value) => ref.read(applicantsSearchQueryProvider.notifier).state = value,
+            decoration: InputDecoration(
+              hintText: 'Search applicants by name...',
+              prefixIcon: const Icon(Icons.search, color: AppColors.kTextHint),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+            ),
           ),
         ),
 
@@ -122,8 +139,8 @@ class _ApplicantsTab extends ConsumerWidget {
             data: (applicants) {
               if (applicants.isEmpty) {
                 return const EmptyErrorWidget(
-                  message: 'No pending applicants.',
-                  icon: Icons.inbox,
+                  message: 'No applicants found matching your criteria.',
+                  icon: Icons.search_off,
                 );
               }
               return RefreshIndicator(
@@ -176,6 +193,7 @@ class _MembersTab extends ConsumerWidget {
   const _MembersTab();
 
   void _showMemberDetails(BuildContext context, Map<String, dynamic> member) {
+    // ... [KEEP YOUR EXISTING _showMemberDetails LOGIC EXACTLY THE SAME] ...
     final name = member['name'] ?? member['fullName'] ?? 'Unknown';
     final email = member['email'] ?? 'N/A';
     final mobile = member['mobileNumber'] ?? 'N/A';
@@ -245,68 +263,94 @@ class _MembersTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final membersState = ref.watch(membersListProvider);
 
-    return membersState.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: AppColors.kPrimaryColor),
-      ),
-      error: (err, _) => EmptyErrorWidget(
-        message: err.toString(),
-        onRetry: () => ref.refresh(membersListProvider),
-      ),
-      data: (members) {
-        if (members.isEmpty) {
-          return const EmptyErrorWidget(
-            message: 'No members found.',
-            icon: Icons.group_off,
-          );
-        }
-        return RefreshIndicator(
-          color: AppColors.kPrimaryColor,
-          onRefresh: () async {
-            ref.invalidate(membersListProvider);
-            await Future.delayed(const Duration(milliseconds: 500));
-          },
-          child: ListView.separated(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.all(16.w),
-            itemCount: members.length,
-            separatorBuilder: (context, index) => SizedBox(height: 12.h),
-            itemBuilder: (context, index) {
-              final Map<String, dynamic> member = members[index];
+    return Column(
+      children: [
+        // --- NEW: Search Bar ---
+        Container(
+          margin: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
+          decoration: BoxDecoration(
+            color: AppColors.kSurfaceColor,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: TextField(
+            onChanged: (value) => ref.read(membersSearchQueryProvider.notifier).state = value,
+            decoration: InputDecoration(
+              hintText: 'Search members by name or mobile...',
+              prefixIcon: const Icon(Icons.search, color: AppColors.kTextHint),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+            ),
+          ),
+        ),
 
-              final name = member['fullName'] ?? member['name'] ?? 'Unknown Member';
-              final mobile = member['mobileNumber'] ?? 'No Number';
-              final role = member['role'] ?? 'MEMBER';
-              final isActive = member['isActive'] == true || member['status'] == 'ACTIVE';
+        // --- EXISTING: Members List ---
+        Expanded(
+          child: membersState.when(
+            loading: () => const Center(
+              child: CircularProgressIndicator(color: AppColors.kPrimaryColor),
+            ),
+            error: (err, _) => EmptyErrorWidget(
+              message: err.toString(),
+              onRetry: () => ref.refresh(membersListProvider),
+            ),
+            data: (members) {
+              if (members.isEmpty) {
+                return const EmptyErrorWidget(
+                  message: 'No members found.',
+                  icon: Icons.group_off,
+                );
+              }
+              return RefreshIndicator(
+                color: AppColors.kPrimaryColor,
+                onRefresh: () async {
+                  ref.invalidate(membersListProvider);
+                  await Future.delayed(const Duration(milliseconds: 500));
+                },
+                child: ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.all(16.w),
+                  itemCount: members.length,
+                  separatorBuilder: (context, index) => SizedBox(height: 12.h),
+                  itemBuilder: (context, index) {
+                    final Map<String, dynamic> member = members[index];
 
-              return Card(
-                margin: EdgeInsets.only(bottom: 0), // Removed margin since we use separated list
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
-                child: ListTile(
-                  title: Text(name, style: AppTextStyles.labelBold),
-                  subtitle: Text('$mobile  •  Role: $role', style: AppTextStyles.bodyMedium),
-                  trailing: Switch(
-                    value: isActive,
-                    activeThumbColor: AppColors.kPrimaryColor,
-                    onChanged: (bool newValue) async {
-                      final success = await ref.read(memberActionProvider.notifier).toggleStatus(member['id']);
-                      if (success && context.mounted) {
-                        CustomSnackBar.showSuccess(context, 'Member status updated!');
-                        ref.invalidate(membersListProvider);
-                      } else if (context.mounted) {
-                        CustomSnackBar.showError(context, 'Failed to update member status.');
-                      }
-                    },
-                  ),
-                  onTap: () {
-                    _showMemberDetails(context, member);
+                    final name = member['fullName'] ?? member['name'] ?? 'Unknown Member';
+                    final mobile = member['mobileNumber'] ?? 'No Number';
+                    final role = member['role'] ?? 'MEMBER';
+                    final isActive = member['isActive'] == true || member['status'] == 'ACTIVE';
+
+                    return Card(
+                      margin: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                      child: ListTile(
+                        title: Text(name, style: AppTextStyles.labelBold),
+                        subtitle: Text('$mobile  •  Role: $role', style: AppTextStyles.bodyMedium),
+                        trailing: Switch(
+                          value: isActive,
+                          activeThumbColor: AppColors.kPrimaryColor,
+                          onChanged: (bool newValue) async {
+                            final success = await ref.read(memberActionProvider.notifier).toggleStatus(member['id']);
+                            if (success && context.mounted) {
+                              CustomSnackBar.showSuccess(context, 'Member status updated!');
+                              ref.invalidate(membersListProvider);
+                            } else if (context.mounted) {
+                              CustomSnackBar.showError(context, 'Failed to update member status.');
+                            }
+                          },
+                        ),
+                        onTap: () {
+                          _showMemberDetails(context, member);
+                        },
+                      ),
+                    );
                   },
                 ),
               );
             },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }

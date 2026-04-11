@@ -2,15 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/admin_dashboard_repository.dart';
 
-// Auto-dispose providers so data refreshes when leaving/returning to the screen
-final applicantsListProvider =
-FutureProvider.autoDispose<List<dynamic>>((ref) async {
-  return ref.read(adminDashboardRepositoryProvider).getApplicants();
+final applicantsSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
+final membersSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
+
+final applicantsListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final repository = ref.read(adminDashboardRepositoryProvider);
+  final searchQuery = ref.watch(applicantsSearchQueryProvider);
+
+  bool isCancelled = false;
+  ref.onDispose(() => isCancelled = true);
+  await Future.delayed(const Duration(milliseconds: 500));
+
+  if (isCancelled) throw Exception('Request cancelled by debounce'); // Riverpod safely ignores this error
+
+  return repository.getApplicants(searchQuery: searchQuery);
 });
 
-final membersListProvider =
-FutureProvider.autoDispose<List<dynamic>>((ref) async {
-  return ref.read(adminDashboardRepositoryProvider).getMembers();
+final membersListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final repository = ref.read(adminDashboardRepositoryProvider);
+  final searchQuery = ref.watch(membersSearchQueryProvider);
+
+  bool isCancelled = false;
+  ref.onDispose(() => isCancelled = true);
+  await Future.delayed(const Duration(milliseconds: 500));
+
+  if (isCancelled) throw Exception('Request cancelled by debounce');
+
+  return repository.getMembers(searchQuery: searchQuery);
 });
 
 // ViewModel for updating the fee

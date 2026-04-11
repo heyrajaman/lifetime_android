@@ -12,22 +12,56 @@ class AdminDashboardRepository {
 
   AdminDashboardRepository(this._apiClient);
 
-  Future<List<dynamic>> getApplicants() async {
+  Future<List<dynamic>> getApplicants({String searchQuery = ''}) async {
     try {
-      final response = await _apiClient.dio.get(ApiEndpoints.getAllApplicants);
-      // Assuming the backend wraps the array in a 'data' field or returns it directly
-      return response.data['data'] ?? response.data;
+      final queryParams = <String, dynamic>{};
+      if (searchQuery.isNotEmpty) {
+        queryParams['search'] = searchQuery;
+      }
+
+      final response = await _apiClient.dio.get(
+        ApiEndpoints.getAllApplicants,
+        queryParameters: queryParams,
+      );
+
+      final data = response.data['data'];
+
+      if (data is List) return data;
+      if (data is Map<String, dynamic> && data.containsKey('applicants')) {
+        return data['applicants'];
+      }
+      if (data is Map<String, dynamic> && data.containsKey('data')) {
+        return data['data']; // Fallback
+      }
+
+      return [];
     } catch (e) {
-      throw Exception('Failed to load applicants.');
+      throw Exception('Failed to load applicants: $e');
     }
   }
 
-  Future<List<dynamic>> getMembers() async {
+  Future<List<dynamic>> getMembers({String searchQuery = ''}) async {
     try {
-      final response = await _apiClient.dio.get(ApiEndpoints.getAllMembers);
-      return response.data['data'] ?? response.data;
+      final queryParams = <String, dynamic>{};
+      if (searchQuery.isNotEmpty) {
+        queryParams['search'] = searchQuery;
+      }
+
+      final response = await _apiClient.dio.get(
+        ApiEndpoints.getAllMembers,
+        queryParameters: queryParams,
+      );
+
+      final data = response.data['data'];
+
+      if (data is List) return data;
+      if (data is Map<String, dynamic> && data.containsKey('members')) {
+        return data['members'];
+      }
+
+      return [];
     } catch (e) {
-      throw Exception('Failed to load members.');
+      throw Exception('Failed to load members: $e');
     }
   }
 

@@ -34,4 +34,45 @@ class AdminAuthRepository {
     // Clear the HTTP-only cookies from the cookie jar to log out
     await _apiClient.clearCookies();
   }
+
+  Future<void> forgotPassword(String email) async {
+    try {
+      await _apiClient.dio.post(
+        ApiEndpoints.forgotPassword,
+        data: {'email': email},
+      );
+    } catch (e) {
+      throw Exception('Failed to send OTP: $e');
+    }
+  }
+
+  Future<void> resetPassword(String email, String otp, String newPassword) async {
+    try {
+      await _apiClient.dio.post(
+        ApiEndpoints.resetPassword,
+        data: {
+          'email': email,
+          'otp': otp,
+          'newPassword': newPassword,
+        },
+      );
+    } catch (e) {
+      throw Exception('Failed to reset password: $e');
+    }
+  }
+
+  Future<void> changePassword(String currentPassword, String newPassword) async {
+    try {
+      await _apiClient.dio.post(
+        ApiEndpoints.changePassword,
+        data: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+    } catch (e) {
+      throw Exception('Failed to change password: $e');
+    }
+  }
+
 }

@@ -125,11 +125,199 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                     isLoading: isLoading,
                     onPressed: _handleLogin,
                   ),
+
+                  const SizedBox(height: 16),
+
+                  TextButton(
+                    onPressed: () {
+                      _showForgotPasswordDialog(context, ref);
+                    },
+                    child: const Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue, // Or use your AppColors
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showForgotPasswordDialog(BuildContext context, WidgetRef ref) {
+    final emailController = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+            elevation: 10,
+            child: Padding(
+              padding: EdgeInsets.all(24.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(Icons.mark_email_read_outlined, size: 60.sp, color: AppColors.kPrimaryColor),
+                  SizedBox(height: 16.h),
+                  Text(
+                    'Reset Password',
+                    style: AppTextStyles.h2Bold,
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    'Enter your registered email address to receive an OTP.',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextSecondary),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 24.h),
+                  CustomTextField(
+                    label: 'Email Address',
+                    hintText: 'admin@example.com',
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    prefixIcon: const Icon(Icons.email_outlined, color: AppColors.kTextHint),
+                  ),
+                  SizedBox(height: 24.h),
+                  CustomButton(
+                    text: 'Send OTP',
+                    isLoading: isSubmitting,
+                    onPressed: () async {
+                      final email = emailController.text.trim();
+                      if (email.isEmpty) {
+                        CustomSnackBar.showError(context, 'Please enter an email');
+                        return;
+                      }
+
+                      setState(() => isSubmitting = true);
+                      final success = await ref.read(adminAuthViewModelProvider.notifier).forgotPassword(email);
+                      setState(() => isSubmitting = false);
+
+                      if (success && context.mounted) {
+                        Navigator.pop(context); // Close dialog
+                        CustomSnackBar.showSuccess(context, 'OTP sent to email (if it exists).');
+                        _showResetPasswordDialog(context, ref, email); // Open Next Dialog
+                      } else if (context.mounted) {
+                        CustomSnackBar.showError(context, 'Failed to send OTP. Please try again.');
+                      }
+                    },
+                  ),
+                  SizedBox(height: 8.h),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Cancel',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextHint),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showResetPasswordDialog(BuildContext context, WidgetRef ref, String email) {
+    final otpController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+            elevation: 10,
+            child: Padding(
+              padding: EdgeInsets.all(24.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(Icons.lock_reset, size: 60.sp, color: AppColors.kPrimaryColor),
+                  SizedBox(height: 16.h),
+                  Text(
+                    'Create New Password',
+                    style: AppTextStyles.h2Bold,
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    'Enter the 6-digit OTP sent to $email and your new password.',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextSecondary),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 24.h),
+                  CustomTextField(
+                    label: 'OTP',
+                    hintText: 'Enter 6-digit OTP',
+                    controller: otpController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(6),
+                    ],
+                    prefixIcon: const Icon(Icons.message_outlined, color: AppColors.kTextHint),
+                  ),
+                  SizedBox(height: 16.h),
+                  CustomTextField(
+                    label: 'New Password',
+                    hintText: 'Enter new password',
+                    controller: newPasswordController,
+                    obscureText: true,
+                    prefixIcon: const Icon(Icons.lock_outline, color: AppColors.kTextHint),
+                  ),
+                  SizedBox(height: 24.h),
+                  CustomButton(
+                    text: 'Verify & Reset',
+                    isLoading: isSubmitting,
+                    onPressed: () async {
+                      final otp = otpController.text.trim();
+                      final newPass = newPasswordController.text.trim();
+
+                      if (otp.isEmpty || newPass.isEmpty) {
+                        CustomSnackBar.showError(context, 'Please fill all fields');
+                        return;
+                      }
+
+                      setState(() => isSubmitting = true);
+                      final success = await ref.read(adminAuthViewModelProvider.notifier).resetPassword(email, otp, newPass);
+                      setState(() => isSubmitting = false);
+
+                      if (success && context.mounted) {
+                        Navigator.pop(context);
+                        CustomSnackBar.showSuccess(context, 'Password reset successfully! You can now log in.');
+                      } else if (context.mounted) {
+                        CustomSnackBar.showError(context, 'Invalid OTP or failed to reset password.');
+                      }
+                    },
+                  ),
+                  SizedBox(height: 8.h),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Cancel',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextHint),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

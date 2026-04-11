@@ -11,6 +11,7 @@ import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/custom_snack_bar.dart';
 import '../../../../core/widgets/empty_error_widget.dart';
 import '../../../admin_auth/data/admin_auth_repository.dart';
+import '../../../admin_auth/presentation/viewmodels/admin_auth_viewmodel.dart';
 import '../viewmodels/admin_dashboard_viewmodel.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -282,60 +283,249 @@ class _MembersTab extends ConsumerWidget {
   }
 }
 
-class _SettingsTab extends ConsumerStatefulWidget {
+class _SettingsTab extends ConsumerWidget {
   const _SettingsTab();
 
-  @override
-  ConsumerState<_SettingsTab> createState() => _SettingsTabState();
-}
+  void _showUpdateFeeDialog(BuildContext context, WidgetRef ref) {
+    final feeController = TextEditingController();
+    bool isSubmitting = false;
 
-class _SettingsTabState extends ConsumerState<_SettingsTab> {
-  final _feeController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+            elevation: 10,
+            child: Padding(
+              padding: EdgeInsets.all(24.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(Icons.currency_rupee, size: 60.sp, color: AppColors.kPrimaryColor),
+                  SizedBox(height: 16.h),
+                  Text(
+                    'Update Fee',
+                    style: AppTextStyles.h2Bold,
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    'Set the new Lifetime Membership fee amount.',
+                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextSecondary),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 24.h),
+                  CustomTextField(
+                    label: 'New Amount (₹)',
+                    hintText: 'e.g., 5000',
+                    controller: feeController,
+                    keyboardType: TextInputType.number,
+                    prefixIcon: const Icon(Icons.payments_outlined, color: AppColors.kTextHint),
+                  ),
+                  SizedBox(height: 24.h),
+                  CustomButton(
+                    text: 'Update Amount',
+                    isLoading: isSubmitting,
+                    onPressed: () async {
+                      final amountText = feeController.text.trim();
+                      final amount = double.tryParse(amountText);
 
-  @override
-  void dispose() {
-    _feeController.dispose();
-    super.dispose();
+                      if (amount == null || amount <= 0) {
+                        CustomSnackBar.showError(context, 'Please enter a valid amount greater than 0');
+                        return;
+                      }
+
+                      setState(() => isSubmitting = true);
+                      final success = await ref.read(feeUpdateViewModelProvider.notifier).updateFee(amount);
+                      setState(() => isSubmitting = false);
+
+                      if (success && context.mounted) {
+                        Navigator.pop(context); // Close dialog
+                        CustomSnackBar.showSuccess(context, 'Membership fee updated successfully!');
+                      } else if (context.mounted) {
+                        CustomSnackBar.showError(context, 'Failed to update fee.');
+                      }
+                    },
+                  ),
+                  SizedBox(height: 8.h),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextHint)),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showChangePasswordDialog(BuildContext context, WidgetRef ref) {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController(); // NEW CONTROLLER
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+            elevation: 10,
+            child: SingleChildScrollView( // Added scroll view to prevent overflow when keyboard opens
+              child: Padding(
+                padding: EdgeInsets.all(24.w),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Icon(Icons.lock_person_outlined, size: 60.sp, color: AppColors.kPrimaryColor),
+                    SizedBox(height: 16.h),
+                    Text(
+                      'Change Password',
+                      style: AppTextStyles.h2Bold,
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      'Update your admin dashboard password for security.',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 24.h),
+                    CustomTextField(
+                      label: 'Current Password',
+                      hintText: 'Enter current password',
+                      controller: currentPasswordController,
+                      obscureText: true,
+                      prefixIcon: const Icon(Icons.lock_outline, color: AppColors.kTextHint),
+                    ),
+                    SizedBox(height: 16.h),
+                    CustomTextField(
+                      label: 'New Password',
+                      hintText: 'Enter new password',
+                      controller: newPasswordController,
+                      obscureText: true,
+                      prefixIcon: const Icon(Icons.lock_reset, color: AppColors.kTextHint),
+                    ),
+                    SizedBox(height: 16.h),
+                    // NEW: Confirm Password Field
+                    CustomTextField(
+                      label: 'Confirm New Password',
+                      hintText: 'Re-enter new password',
+                      controller: confirmPasswordController,
+                      obscureText: true,
+                      prefixIcon: const Icon(Icons.verified_user_outlined, color: AppColors.kTextHint),
+                    ),
+                    SizedBox(height: 24.h),
+                    CustomButton(
+                      text: 'Update Password',
+                      isLoading: isSubmitting,
+                      onPressed: () async {
+                        final currentPass = currentPasswordController.text.trim();
+                        final newPass = newPasswordController.text.trim();
+                        final confirmPass = confirmPasswordController.text.trim();
+
+                        // 1. Check if any fields are empty
+                        if (currentPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
+                          CustomSnackBar.showError(context, 'Please fill all fields');
+                          return;
+                        }
+
+                        // 2. Check if the new passwords match locally
+                        if (newPass != confirmPass) {
+                          CustomSnackBar.showError(context, 'New passwords do not match!');
+                          return;
+                        }
+
+                        // 3. Send ONLY currentPass and newPass to backend
+                        setState(() => isSubmitting = true);
+                        final success = await ref.read(adminAuthViewModelProvider.notifier).changePassword(currentPass, newPass);
+                        setState(() => isSubmitting = false);
+
+                        if (success && context.mounted) {
+                          Navigator.pop(context); // Close dialog
+                          CustomSnackBar.showSuccess(context, 'Password changed successfully!');
+                        } else if (context.mounted) {
+                          CustomSnackBar.showError(context, 'Failed to change password. Please check your current password.');
+                        }
+                      },
+                    ),
+                    SizedBox(height: 8.h),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextHint)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSettingTile(BuildContext context, {required String title, required String subtitle, required IconData icon, required VoidCallback onTap}) {
+    return Card(
+      elevation: 0,
+      color: AppColors.kSurfaceColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.r),
+        side: BorderSide(color: AppColors.kBorderColor, width: 1),
+      ),
+      child: ListTile(
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+        leading: Container(
+          padding: EdgeInsets.all(10.w),
+          decoration: BoxDecoration(
+            color: AppColors.kPrimaryColor.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: AppColors.kPrimaryColor, size: 24.sp),
+        ),
+        title: Text(title, style: AppTextStyles.labelBold),
+        subtitle: Text(subtitle, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextSecondary)),
+        trailing: Icon(Icons.arrow_forward_ios, size: 16.sp, color: AppColors.kTextHint),
+        onTap: onTap,
+      ),
+    );
   }
 
   @override
-  Widget build(BuildContext context) {
-    final feeState = ref.watch(feeUpdateViewModelProvider);
-
-    return Padding(
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SingleChildScrollView(
       padding: EdgeInsets.all(24.w),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('System Settings', style: AppTextStyles.h2Bold),
-          SizedBox(height: 24.h),
-          CustomTextField(
-            label: 'Update Membership Fee (₹)',
-            controller: _feeController,
-            keyboardType: TextInputType.number,
-            hintText: 'e.g. 5000',
+          SizedBox(height: 8.h),
+          Text(
+            'Manage app configurations and security preferences.',
+            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextSecondary),
+          ),
+          SizedBox(height: 32.h),
+
+          _buildSettingTile(
+            context,
+            title: 'Update Membership Fee',
+            subtitle: 'Change the lifetime registration cost',
+            icon: Icons.currency_rupee,
+            onTap: () => _showUpdateFeeDialog(context, ref),
           ),
           SizedBox(height: 16.h),
-          CustomButton(
-            text: 'Save Changes',
-            isLoading: feeState.isLoading,
-            onPressed: () async {
-              final amount = double.tryParse(_feeController.text);
-              if (amount == null) {
-                CustomSnackBar.showError(
-                    context, 'Please enter a valid amount');
-                return;
-              }
-              final success = await ref
-                  .read(feeUpdateViewModelProvider.notifier)
-                  .updateFee(amount);
 
-              if (success && context.mounted) {
-                CustomSnackBar.showSuccess(
-                    context, 'Fee updated successfully!');
-                _feeController.clear();
-              }
-            },
+          _buildSettingTile(
+            context,
+            title: 'Change Password',
+            subtitle: 'Update your admin portal password',
+            icon: Icons.security_outlined,
+            onTap: () => _showChangePasswordDialog(context, ref),
           ),
         ],
       ),

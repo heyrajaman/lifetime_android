@@ -33,6 +33,12 @@ class ApiEndpoints {
   static const String promoteApplicant = '/admins/promote';
   static String toggleMemberStatus(String id) => '/admins/members/$id/status';
   static String downloadIdCard(String id) => '/admins/members/$id/id-card';
+
+  // Admin Auth & Profile
+  static const String forgotPassword = '/admins/forgot-password';
+  static const String resetPassword = '/admins/reset-password';
+  static const String changePassword = '/admins/change-password';
+
   static const String updateFee = '/admins/settings/update-fee';
   static String adminEditApplicant(String id) => '/admins/applicants/$id/edit';
 }

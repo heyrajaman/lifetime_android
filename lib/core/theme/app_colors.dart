@@ -5,6 +5,7 @@ class AppColors {
   static const Color kPrimaryColor = Color(0xFFEA580C); // orange-600
   static const Color kPrimaryHover = Color(0xFFC2410C); // orange-700
   static const Color kPrimaryLight = Color(0xFFFFF7ED); // orange-50
+  static const Color kBorderColor = Color(0xFFE0E0E0); // light grey
 
   // Background & Surfaces
   static const Color kBackgroundColor = Color(0xFFF9FAFB); // gray-50

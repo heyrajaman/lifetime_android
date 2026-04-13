@@ -129,11 +129,14 @@ class _ApplicationFormScreenState
   }
 
   Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+    final DateTime today = DateTime.now();
+    final DateTime maxAllowedDob = DateTime(today.year - 18, today.month, today.day);
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime(1990), // Default starting year
+      initialDate: DateTime(1990),
       firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
+      lastDate: controller == _dobCtrl ? maxAllowedDob : today,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -149,7 +152,6 @@ class _ApplicationFormScreenState
     );
     if (picked != null) {
       setState(() {
-        // Formats date as YYYY-MM-DD
         controller.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
       });
     }
@@ -190,12 +192,6 @@ class _ApplicationFormScreenState
       return;
     }
 
-    if (_isFromRaipur && _selectedRegion == null) {
-      CustomSnackBar.showError(
-          context, 'Please select a region since you are from Raipur.');
-      return;
-    }
-
     if (_selectedProposer == null) {
       CustomSnackBar.showError(
           context, 'Please search and select a proposer member.');
@@ -208,14 +204,11 @@ class _ApplicationFormScreenState
       return;
     }
 
-    // FIX 1: Added null assertion (!) on _selectedProposer — safe here because
-    // we already returned early above if _selectedProposer == null.
-    final data = {
+    final data = <String, dynamic>{
       'full_name': _fullNameCtrl.text.trim(),
       'father_or_husband_name': _fatherNameCtrl.text.trim(),
       'gender': _selectedGender,
       'date_of_birth': _dobCtrl.text.trim(),
-      'marriage_date': _marriageDateCtrl.text.trim(),
       'blood_group': _selectedBloodGroup,
       'mobile_number': _mobileCtrl.text.trim(),
       'email': _emailCtrl.text.trim(),
@@ -225,10 +218,16 @@ class _ApplicationFormScreenState
       'region': _isFromRaipur ? _selectedRegion : '',
       'education': _eduCtrl.text.trim(),
       'occupation': _occCtrl.text.trim(),
-      'office_address': _officeAddressCtrl.text.trim(),
-      'proposer_member_id': _selectedProposer!['id'],  // FIX 1 applied here
-      'declaration': 'true',
+      'proposer_member_id': _selectedProposer!['id'],
+      'membership_type': 'LIFETIME',
     };
+
+    if (_marriageDateCtrl.text.trim().isNotEmpty) {
+      data['marriage_date'] = _marriageDateCtrl.text.trim();
+    }
+    if (_officeAddressCtrl.text.trim().isNotEmpty) {
+      data['office_address'] = _officeAddressCtrl.text.trim();
+    }
 
     final success =
     await ref.read(applicationSubmitProvider.notifier).submitForm(
@@ -272,14 +271,24 @@ class _ApplicationFormScreenState
                 CustomTextField(
                   label: 'Full Name *',
                   controller: _fullNameCtrl,
-                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v.trim().length < 2) return 'Must be at least 2 characters';
+                    if (v.trim().length > 100) return 'Must be less than 100 characters';
+                    return null;
+                  },
                 ),
                 SizedBox(height: 16.h),
 
                 CustomTextField(
                   label: 'Father/Husband Name *',
                   controller: _fatherNameCtrl,
-                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v.trim().length < 2) return 'Must be at least 2 characters';
+                    if (v.trim().length > 100) return 'Must be less than 100 characters';
+                    return null;
+                  },
                 ),
                 SizedBox(height: 16.h),
 
@@ -392,7 +401,12 @@ class _ApplicationFormScreenState
                   label: 'Current Address *',
                   controller: _currAddressCtrl,
                   maxLines: 2,
-                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v.trim().length < 10) return 'Please enter a detailed address (min 10 chars)';
+                    if (v.trim().length > 500) return 'Address is too long (max 500 chars)';
+                    return null;
+                  },
                 ),
                 SizedBox(height: 16.h),
 
@@ -400,7 +414,12 @@ class _ApplicationFormScreenState
                   label: 'Permanent Address *',
                   controller: _permAddressCtrl,
                   maxLines: 2,
-                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v.trim().length < 10) return 'Please enter a detailed address (min 10 chars)';
+                    if (v.trim().length > 500) return 'Address is too long (max 500 chars)';
+                    return null;
+                  },
                 ),
                 SizedBox(height: 16.h),
 
@@ -518,6 +537,13 @@ class _ApplicationFormScreenState
                         hintText: 'Type member name or number...',
                         prefixIcon: Icon(Icons.search, color: AppColors.kTextHint),
                       ),
+                      onChanged: (value) {
+                        if (_selectedProposer != null) {
+                          setState(() {
+                            _selectedProposer = null;
+                          });
+                        }
+                      },
                     );
                   },
                   // Custom UI for the dropdown list to show Name (title) and Mobile (subtitle)

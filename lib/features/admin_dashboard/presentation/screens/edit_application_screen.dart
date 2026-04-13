@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -86,6 +87,34 @@ class _EditApplicationFormState extends ConsumerState<_EditApplicationForm> {
     return dateStr;
   }
 
+  void _onFieldChanged() {
+    setState(() {});
+  }
+
+  bool get _hasChanges {
+    final d = widget.initialData;
+    if (_nameCtrl.text.trim() != (d['fullName'] ?? '')) return true;
+    if (_fatherNameCtrl.text.trim() != (d['fatherOrHusbandName'] ?? '')) return true;
+    if (_dobCtrl.text.trim() != _formatDate(d['dateOfBirth'])) return true;
+    if (_marriageDateCtrl.text.trim() != _formatDate(d['marriageDate'])) return true;
+    if (_mobileCtrl.text.trim() != (d['mobileNumber'] ?? '')) return true;
+    if (_emailCtrl.text.trim() != (d['email'] ?? '')) return true;
+    if (_educationCtrl.text.trim() != (d['education'] ?? '')) return true;
+    if (_occupationCtrl.text.trim() != (d['occupation'] ?? '')) return true;
+    if (_currentAddressCtrl.text.trim() != (d['currentAddress'] ?? '')) return true;
+    if (_permanentAddressCtrl.text.trim() != (d['permanentAddress'] ?? '')) return true;
+    if (_officeAddressCtrl.text.trim() != (d['officeAddress'] ?? '')) return true;
+    if (_regionCtrl.text.trim() != (d['region'] ?? '')) return true;
+
+    if (_selectedGender != d['gender']) return true;
+    if (_selectedBloodGroup != d['bloodGroup']) return true;
+
+    bool initRaipur = d['isFromRaipur'] == true || d['isFromRaipur'] == 'true';
+    if (_isFromRaipur != initRaipur) return true;
+
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -109,10 +138,36 @@ class _EditApplicationFormState extends ConsumerState<_EditApplicationForm> {
     _selectedGender = data['gender'];
     _selectedBloodGroup = data['bloodGroup'];
     _isFromRaipur = data['isFromRaipur'] == true || data['isFromRaipur'] == 'true';
+
+    _nameCtrl.addListener(_onFieldChanged);
+    _fatherNameCtrl.addListener(_onFieldChanged);
+    _dobCtrl.addListener(_onFieldChanged);
+    _marriageDateCtrl.addListener(_onFieldChanged);
+    _mobileCtrl.addListener(_onFieldChanged);
+    _emailCtrl.addListener(_onFieldChanged);
+    _educationCtrl.addListener(_onFieldChanged);
+    _occupationCtrl.addListener(_onFieldChanged);
+    _currentAddressCtrl.addListener(_onFieldChanged);
+    _permanentAddressCtrl.addListener(_onFieldChanged);
+    _officeAddressCtrl.addListener(_onFieldChanged);
+    _regionCtrl.addListener(_onFieldChanged);
   }
 
   @override
   void dispose() {
+    _nameCtrl.removeListener(_onFieldChanged);
+    _fatherNameCtrl.removeListener(_onFieldChanged);
+    _dobCtrl.removeListener(_onFieldChanged);
+    _marriageDateCtrl.removeListener(_onFieldChanged);
+    _mobileCtrl.removeListener(_onFieldChanged);
+    _emailCtrl.removeListener(_onFieldChanged);
+    _educationCtrl.removeListener(_onFieldChanged);
+    _occupationCtrl.removeListener(_onFieldChanged);
+    _currentAddressCtrl.removeListener(_onFieldChanged);
+    _permanentAddressCtrl.removeListener(_onFieldChanged);
+    _officeAddressCtrl.removeListener(_onFieldChanged);
+    _regionCtrl.removeListener(_onFieldChanged);
+
     _nameCtrl.dispose();
     _fatherNameCtrl.dispose();
     _dobCtrl.dispose();
@@ -252,11 +307,50 @@ class _EditApplicationFormState extends ConsumerState<_EditApplicationForm> {
           builder: (_) => Dialog(
             backgroundColor: Colors.transparent,
             insetPadding: EdgeInsets.all(16.w),
-            child: InteractiveViewer( // Allows pinching to zoom!
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8.r),
-                child: Image.network(fullUrl, fit: BoxFit.contain),
-              ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                InteractiveViewer(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8.r),
+                    child: Image.network(fullUrl, fit: BoxFit.contain),
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+                Positioned(
+                  bottom: 20,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.kPrimaryColor,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
+                    ),
+                    icon: const Icon(Icons.download),
+                    label: const Text('Download Image', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: () async {
+                      final uri = Uri.parse(fullUrl);
+                      final scaffoldMessenger = ScaffoldMessenger.of(context);
+                      final canLaunch = await canLaunchUrl(uri);
+                      if (!context.mounted) return;
+
+                      if (canLaunch) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } else {
+                        scaffoldMessenger.showSnackBar(
+                          const SnackBar(content: Text('Could not launch download link')),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -473,7 +567,7 @@ class _EditApplicationFormState extends ConsumerState<_EditApplicationForm> {
               CustomButton(
                 text: 'Save Changes',
                 isLoading: isProcessing,
-                onPressed: _handleSave,
+                onPressed: _hasChanges ? _handleSave : null,
               ),
               SizedBox(height: 32.h),
               const Divider(),

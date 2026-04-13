@@ -40,7 +40,7 @@ class _ApprovalScreenState extends ConsumerState<ApprovalScreen> {
     if (success && mounted) {
       setState(() {
         _isActionComplete = true;
-        _completeMessage = action == 'APPROVED'
+        _completeMessage = action == 'APPROVE'
             ? 'Application successfully approved.'
             : 'Application has been rejected.';
       });
@@ -123,7 +123,7 @@ class _ApprovalScreenState extends ConsumerState<ApprovalScreen> {
                         text: 'Reject',
                         variant: ButtonVariant.outlined,
                         isLoading: isSubmitting,
-                        onPressed: () => _handleAction('REJECTED'),
+                        onPressed: () => _handleAction('REJECT'),
                       ),
                     ),
                     SizedBox(width: 16.w),
@@ -131,7 +131,7 @@ class _ApprovalScreenState extends ConsumerState<ApprovalScreen> {
                       child: CustomButton(
                         text: 'Approve',
                         isLoading: isSubmitting,
-                        onPressed: () => _handleAction('APPROVED'),
+                        onPressed: () => _handleAction('APPROVE'),
                       ),
                     ),
                   ],

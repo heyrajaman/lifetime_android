@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -17,7 +19,15 @@ class AdminAnalyticsScreen extends ConsumerWidget {
   // Helper to format camelCase keys (e.g., 'totalMembers' -> 'Total Members')
   String _formatKey(String key) {
     final formatted = key.replaceAll(RegExp(r'(?<!^)(?=[A-Z])'), ' ');
-    return formatted.toUpperCase() + formatted.substring(1);
+    return formatted[0].toUpperCase() + formatted.substring(1);
+  }
+
+  IconData _getIconForKey(String key) {
+    final lowerKey = key.toLowerCase();
+    if (lowerKey.contains('revenue')) return Icons.currency_rupee;
+    if (lowerKey.contains('member')) return Icons.people_alt;
+    if (lowerKey.contains('pending') || lowerKey.contains('review')) return Icons.pending_actions;
+    return Icons.bar_chart;
   }
 
   Future<void> _pickDateRange(BuildContext context, WidgetRef ref) async {
@@ -48,6 +58,7 @@ class AdminAnalyticsScreen extends ConsumerWidget {
   }
 
   Future<void> _handleDownload(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
     final dateRange = ref.read(statsDateRangeProvider);
 
     String? start;
@@ -58,7 +69,9 @@ class AdminAnalyticsScreen extends ConsumerWidget {
       end = dateRange.end.toIso8601String();
     }
 
-    final bytes = await ref.read(exportReportViewModelProvider.notifier).downloadReport(
+    final bytes = await ref
+        .read(exportReportViewModelProvider.notifier)
+        .downloadReport(
       startDate: start,
       endDate: end,
     );
@@ -66,11 +79,34 @@ class AdminAnalyticsScreen extends ConsumerWidget {
     if (!context.mounted) return;
 
     if (bytes != null && bytes.isNotEmpty) {
-      // For mobile, you typically save to device using path_provider.
-      // Here we simulate success. If you have path_provider installed, you can write bytes to File here.
-      CustomSnackBar.showSuccess(context, 'Report downloaded successfully! (${bytes.length} bytes)');
+      try {
+        final fileName =
+            'Lifetime_Report_${DateTime.now().millisecondsSinceEpoch}.csv';
+
+        // ✅ FIX: remove 'ext' and include extension in name
+        final String? savedFilePath = await FileSaver.instance.saveAs(
+          name: fileName,
+          bytes: Uint8List.fromList(bytes),
+          fileExtension: 'csv',
+          mimeType: MimeType.csv,
+        );
+
+        if (!context.mounted) return;
+
+        if (savedFilePath != null) {
+          CustomSnackBar.showSuccess(
+              context, 'Report saved successfully!');
+        }
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Error saving file: $e')),
+        );
+      }
     } else {
-      CustomSnackBar.showError(context, 'Failed to download report or no data found.');
+      messenger.showSnackBar(
+        const SnackBar(
+            content: Text('Failed to download report or no data found.')),
+      );
     }
   }
 
@@ -143,7 +179,7 @@ class AdminAnalyticsScreen extends ConsumerWidget {
                       crossAxisCount: 2,
                       crossAxisSpacing: 16.w,
                       mainAxisSpacing: 16.h,
-                      childAspectRatio: 1.2,
+                      childAspectRatio: 0.85,
                     ),
                     itemCount: statsData.length,
                     itemBuilder: (context, index) {
@@ -156,27 +192,36 @@ class AdminAnalyticsScreen extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(12.r),
                           side: BorderSide(color: Colors.grey.shade300),
                         ),
-                        child: Padding(
-                          padding: EdgeInsets.all(16.w),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                value.toString(),
-                                style: AppTextStyles.h1Extrabold.copyWith(color: AppColors.kPrimaryColor),
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              SizedBox(height: 8.h),
-                              Text(
-                                _formatKey(key),
-                                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextSecondary),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12.r),
+                          onTap: () {
+                            CustomSnackBar.showSuccess(
+                                context, 'This shows the total ${_formatKey(key).toLowerCase()} for the selected period.');
+                          },
+                          child: Padding(
+                            padding: EdgeInsets.all(16.w),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(_getIconForKey(key), color: AppColors.kPrimaryColor, size: 28.sp),
+                                SizedBox(height: 8.h),
+                                Text(
+                                  key.toLowerCase().contains('revenue') ? '₹$value' : value.toString(),
+                                  style: AppTextStyles.h1Extrabold.copyWith(color: AppColors.kPrimaryColor),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                SizedBox(height: 4.h),
+                                Text(
+                                  _formatKey(key),
+                                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextSecondary),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );
@@ -186,17 +231,17 @@ class AdminAnalyticsScreen extends ConsumerWidget {
               },
             ),
           ),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(16.w),
-          child: CustomButton(
-            text: 'Download CSV Report',
-            isLoading: isDownloading,
-            onPressed: () => _handleDownload(context, ref),
+          SafeArea(
+            child: Padding(
+              padding: EdgeInsets.all(16.w),
+              child: CustomButton(
+                text: 'Download CSV Report',
+                isLoading: isDownloading,
+                onPressed: () => _handleDownload(context, ref),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

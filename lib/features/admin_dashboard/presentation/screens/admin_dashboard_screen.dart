@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'admin_analytics_screen.dart';
 import 'admin_regions_screen.dart';
 
+import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
@@ -16,21 +20,80 @@ import '../../../admin_auth/data/admin_auth_repository.dart';
 import '../../../admin_auth/presentation/viewmodels/admin_auth_viewmodel.dart';
 import '../viewmodels/admin_dashboard_viewmodel.dart';
 
-class AdminDashboardScreen extends StatefulWidget {
+class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
 
   @override
-  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+  ConsumerState<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
+
+  io.Socket? _adminSocket;
 
   final List<Widget> _tabs = [
     const _ApplicantsTab(),
     const _MembersTab(),
     const _SettingsTab(),
   ];
+
+  Future<void> _initSocket() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+
+    final String socketUrl = '${ApiEndpoints.baseUrl}/admin';
+
+    _adminSocket = io.io(socketUrl, io.OptionBuilder()
+        .setTransports(['websocket'])
+        .setAuth({'token': token})
+        .build());
+
+    _adminSocket?.onConnect((_) {
+      print('🟢 Connected to Real-Time Admin Socket!');
+    });
+
+    _adminSocket?.on('admin:applicant:status', (data) {
+      print('⚡ Real-time status update received: $data');
+      if (mounted) {
+        ref.invalidate(applicantsListProvider);
+        ref.invalidate(membersListProvider);
+
+        CustomSnackBar.showSuccess(context, 'An application status was just updated live!');
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initSocket();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _adminSocket?.disconnect();
+    _adminSocket?.dispose();
+
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(applicantsListProvider);
+      ref.invalidate(membersListProvider);
+    }
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    ref.invalidate(applicantsListProvider);
+    ref.invalidate(membersListProvider);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +140,7 @@ class _ApplicantsTab extends ConsumerWidget {
     if (status == null) return 'Pending';
     return status.replaceAll('_', ' ').split(' ').map((word) {
       if (word.isEmpty) return '';
-      return word.toUpperCase() + word.substring(1).toLowerCase();
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
     }).join(' ');
   }
 
@@ -361,6 +424,7 @@ class _SettingsTab extends ConsumerWidget {
   void _showUpdateFeeDialog(BuildContext context, WidgetRef ref) {
     final feeController = TextEditingController();
     bool isSubmitting = false;
+    String? errorMessage;
 
     showDialog(
       context: context,
@@ -369,66 +433,90 @@ class _SettingsTab extends ConsumerWidget {
           return Dialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
             elevation: 10,
-            child: Padding(
-              padding: EdgeInsets.all(24.w),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(Icons.currency_rupee, size: 60.sp, color: AppColors.kPrimaryColor),
-                  SizedBox(height: 16.h),
-                  Text(
-                    'Update Fee',
-                    style: AppTextStyles.h2Bold,
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    'Set the new Lifetime Membership fee amount.',
-                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextSecondary),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 24.h),
-                  CustomTextField(
-                    label: 'New Amount (₹)',
-                    hintText: 'e.g., 5000',
-                    controller: feeController,
-                    keyboardType: TextInputType.number,
-                    prefixIcon: const Icon(Icons.payments_outlined, color: AppColors.kTextHint),
-                  ),
-                  SizedBox(height: 24.h),
-                  CustomButton(
-                    text: 'Update Amount',
-                    isLoading: isSubmitting,
-                    onPressed: () async {
-                      final amountText = feeController.text.trim();
-                      final amount = double.tryParse(amountText);
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.all(24.w),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Icon(Icons.currency_rupee, size: 60.sp, color: AppColors.kPrimaryColor),
+                    SizedBox(height: 16.h),
+                    Text(
+                      'Update Fee',
+                      style: AppTextStyles.h2Bold,
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      'Set the new Lifetime Membership fee amount.',
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 24.h),
 
-                      if (amount == null || amount <= 0) {
-                        CustomSnackBar.showError(context, 'Please enter a valid amount greater than 0');
-                        return;
-                      }
+                    if (errorMessage != null) ...[
+                      Container(
+                        padding: EdgeInsets.all(12.w),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8.r),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red, size: 20.sp),
+                            SizedBox(width: 8.w),
+                            Expanded(
+                              child: Text(errorMessage!, style: AppTextStyles.bodyMedium.copyWith(color: Colors.red)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 16.h),
+                    ],
 
-                      setState(() => isSubmitting = true);
-                      final success = await ref.read(feeUpdateViewModelProvider.notifier).updateFee(amount);
-                      setState(() => isSubmitting = false);
+                    CustomTextField(
+                      label: 'New Amount (₹)',
+                      hintText: 'e.g., 5000',
+                      controller: feeController,
+                      keyboardType: TextInputType.number,
+                      prefixIcon: const Icon(Icons.payments_outlined, color: AppColors.kTextHint),
+                    ),
+                    SizedBox(height: 24.h),
+                    CustomButton(
+                      text: 'Update Amount',
+                      isLoading: isSubmitting,
+                      onPressed: () async {
+                        final amountText = feeController.text.trim();
+                        final amount = double.tryParse(amountText);
 
-                      if (success && context.mounted) {
-                        Navigator.pop(context); // Close dialog
-                        CustomSnackBar.showSuccess(context, 'Membership fee updated successfully!');
-                      } else if (context.mounted) {
-                        CustomSnackBar.showError(context, 'Failed to update fee.');
-                      }
-                    },
-                  ),
-                  SizedBox(height: 8.h),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextHint)),
-                  ),
-                ],
+                        if (amount == null || amount <= 0) {
+                          setState(() => errorMessage = 'Please enter a valid amount greater than 0');
+                          return;
+                        }
+
+                        setState(() => isSubmitting = true);
+                        final success = await ref.read(feeUpdateViewModelProvider.notifier).updateFee(amount);
+                        setState(() => isSubmitting = false);
+
+                        if (success && context.mounted) {
+                          Navigator.pop(context);
+                          CustomSnackBar.showSuccess(context, 'Membership fee updated successfully!');
+                        } else if (context.mounted) {
+                          setState(() => errorMessage = 'Failed to update fee.');
+                        }
+                      },
+                    ),
+                    SizedBox(height: 8.h),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Cancel', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.kTextHint)),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            )
           );
         },
       ),
@@ -532,13 +620,13 @@ class _SettingsTab extends ConsumerWidget {
 
                         // 1. Check if any fields are empty
                         if (currentPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
-                          CustomSnackBar.showError(context, 'Please fill all fields');
+                          setState(() => errorMessage = 'Please fill all fields');
                           return;
                         }
 
                         // 2. Check if the new passwords match locally
                         if (newPass != confirmPass) {
-                          CustomSnackBar.showError(context, 'New passwords do not match!');
+                          setState(() => errorMessage = 'New passwords do not match!');
                           return;
                         }
 
@@ -548,14 +636,11 @@ class _SettingsTab extends ConsumerWidget {
                         setState(() => isSubmitting = false);
 
                         if (success && context.mounted) {
-                          Navigator.pop(context); // Close dialog
+                          Navigator.pop(context);
                           CustomSnackBar.showSuccess(context, 'Password changed successfully!');
                         } else if (context.mounted) {
                           final error = ref.read(adminAuthViewModelProvider).error;
-                          CustomSnackBar.showError(
-                              context,
-                              error.toString().replaceAll('Exception: ', '')
-                          );
+                          setState(() => errorMessage = error.toString().replaceAll('Exception: ', ''));
                         }
                       },
                     ),
